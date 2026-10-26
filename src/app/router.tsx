@@ -3,8 +3,8 @@ import { createBrowserRouter, Navigate } from 'react-router';
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
 import { WorkspacesPage } from '../pages/WorkspacesPage';
-import { BranchesPage } from '../pages/BranchesPage';
 import { BranchWorkspacePage } from '../pages/BranchWorkspacePage';
+import { WorkspacePage } from '../pages/WorkspacePage';
 
 export const router = createBrowserRouter([
   {
@@ -25,7 +25,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/workspaces/:workspaceId',
-    element: <BranchesPage />,
+    element: <WorkspacePage />,
   },
   {
     path: '/branches/:branchId',
