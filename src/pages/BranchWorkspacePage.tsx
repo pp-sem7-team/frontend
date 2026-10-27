@@ -1,12 +1,11 @@
-import { GitBranch } from 'lucide-react';
 import { useParams } from 'react-router';
-import { DiffInput } from '../features/changes/DiffInput';
+
 import { AppLayout } from '../components/layout/AppLayout';
-import { AppHeader } from '../components/layout/AppHeader';
-import { CommitResult } from '../features/commits/CommitResult';
-import type { Branch } from '../types/api';
+import { DiffInput } from '../features/changes/DiffInput';
 import { ChangeHistory } from '../features/history/ChangeHistory';
 import { PullRequestResult } from '../features/pull-requests/PullRequestResult';
+
+import type { Branch } from '../types/api';
 
 interface BranchWorkspacePageProps {
   branch?: Branch | null;
@@ -22,39 +21,65 @@ export function BranchWorkspacePage({
 
   return (
     <AppLayout>
-      <AppHeader
-        title={currentBranch?.name ?? 'Ветка'}
-        description="Анализ изменений, коммиты и Pull Request"
-      />
+      <div className="flex min-h-screen min-w-0 flex-col">
+        {/* Верхняя панель */}
+        <header className="border-b border-border">
+          <div className="flex min-h-[64px] items-center justify-between gap-4 px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="text-sm text-text-secondary">
+                Рабочая область
+              </span>
 
-      <div className="px-8 py-9">
-        <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent">
-            <GitBranch size={22} />
+              <span className="text-text-muted">/</span>
+
+              <h1 className="truncate font-mono text-sm font-semibold text-text-primary">
+                {currentBranch?.name ?? 'Ветка'}
+              </h1>
+
+              {currentBranch && (
+                <span
+                  className={[
+                    'shrink-0 rounded-full px-2.5 py-1',
+                    'text-xs font-medium',
+                    currentBranch.status === 'active'
+                      ? 'bg-success-soft text-success'
+                      : 'bg-surface-hover text-text-muted',
+                  ].join(' ')}
+                >
+                  {currentBranch.status === 'active'
+                    ? 'Активна'
+                    : 'Закрыта'}
+                </span>
+              )}
+            </div>
           </div>
+        </header>
 
-          <div>
-            <h2 className="text-2xl font-bold text-text-primary">
-              {currentBranch?.name ?? 'Работа с веткой'}
-            </h2>
+        {/* Основное содержимое */}
+        <main className="min-w-0 flex-1 p-4">
+          <div
+            className={[
+              'grid min-h-[calc(100vh-180px)]',
+              'grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.3fr)]',
+              'gap-3',
+            ].join(' ')}
+          >
+            {/* Левая колонка — ввод изменений */}
+            <div className="min-w-0">
+              <DiffInput />
+            </div>
 
-            <p className="mt-1 text-sm text-text-secondary">
-              Анализируйте изменения и подготавливайте коммиты.
-            </p>
+            {/* Центральная колонка — история */}
+            <div className="min-w-0">
+              <ChangeHistory />
+            </div>
+
+            {/* Правая колонка — Pull Request */}
+            <div className="min-w-0">
+              <PullRequestResult />
+            </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-6">
-          <section className="min-w-0 space-y-6">
-            <DiffInput />
-            <CommitResult />
-          </section>
-
-          <aside className="space-y-6">
-            <ChangeHistory />
-            <PullRequestResult />
-          </aside>
-        </div>
+        </main>
       </div>
     </AppLayout>
   );
