@@ -59,7 +59,8 @@ export class ApiClient {
   }
 
   private async send<T>(path: string, options: RequestOptions, token?: string): Promise<T> {
-    const response = await this.transport(`${this.baseUrl}${path}`, {
+    const transport = this.transport;
+    const response = await transport(`${this.baseUrl}${path}`, {
       method: options.method ?? 'GET',
       headers: {
         Accept: 'application/json',

@@ -30,6 +30,14 @@ test('public auth requests have JSON but no bearer token', async () => {
   assert.deepEqual(await client.request('/auth/login', { public: true, method: 'POST', body: { email: 'person@example.test', password: 'test-password' } }), rotated);
 });
 
+test('transport is called without a receiver, as required by browser fetch', async () => {
+  const { client } = setup(async function (this: unknown) {
+    assert.equal(this, undefined);
+    return json(rotated);
+  });
+  assert.deepEqual(await client.request('/auth/login', { public: true }), rotated);
+});
+
 test('protected request requires a session without sending HTTP', async () => {
   const { client } = setup(async () => { throw new Error('must not send'); }, null);
   await assert.rejects(client.request('/users/me'), (error: unknown) => error instanceof ApiError && error.status === 401);
