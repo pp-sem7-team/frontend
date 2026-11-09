@@ -1,3 +1,6 @@
+import { useAuthForm } from '../auth/useAuthForm';
+import { useSession } from '../auth/useSession';
+import { RequestState } from '../components/ui/RequestState';
 import { Link } from 'react-router';
 
 import { AuthLayout } from '../components/layout/AuthLayout';
@@ -5,6 +8,8 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 
 export function RegisterPage() {
+  const { busy, error, onSubmit } = useAuthForm('register');
+  const { error: sessionError } = useSession();
   return (
     <AuthLayout>
       <h1 className="text-center text-2xl font-bold">
@@ -19,7 +24,7 @@ export function RegisterPage() {
 
       <form
         className="mt-6 flex flex-col gap-4"
-        onSubmit={(event) => event.preventDefault()}
+        onSubmit={onSubmit}
       >
         <Input
           id="register-email"
@@ -28,6 +33,7 @@ export function RegisterPage() {
           type="email"
           placeholder="alex@example.com"
           autoComplete="email"
+          disabled={busy}
           required
         />
 
@@ -39,6 +45,7 @@ export function RegisterPage() {
           placeholder="Не менее 8 символов"
           autoComplete="new-password"
           minLength={8}
+          disabled={busy}
           required
         />
 
@@ -50,10 +57,12 @@ export function RegisterPage() {
           placeholder="Введите пароль ещё раз"
           autoComplete="new-password"
           minLength={8}
+          disabled={busy}
           required
         />
 
-        <Button type="submit" className="w-full">
+        <RequestState error={error ?? sessionError} />
+        <Button type="submit" className="w-full" loading={busy}>
           Создать аккаунт
         </Button>
       </form>

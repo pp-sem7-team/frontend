@@ -1,5 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router';
-
+import { SessionGate } from '../auth/SessionGate';
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
 import { WorkspacesPage } from '../pages/WorkspacesPage';
@@ -8,27 +8,20 @@ import { WorkspacePage } from '../pages/WorkspacePage';
 
 export const router = createBrowserRouter([
   {
-    path: '/',
-    element: <Navigate to="/login" replace />,
+    element: <SessionGate guest />,
+    children: [
+      { path: '/', element: <Navigate to="/workspaces" replace /> },
+      { path: '/login', element: <LoginPage /> },
+      { path: '/register', element: <RegisterPage /> },
+    ],
   },
   {
-    path: '/login',
-    element: <LoginPage />,
+    element: <SessionGate />,
+    children: [
+      { path: '/workspaces', element: <WorkspacesPage /> },
+      { path: '/workspaces/:workspaceId', element: <WorkspacePage /> },
+      { path: '/branches/:branchId', element: <BranchWorkspacePage /> },
+    ],
   },
-  {
-    path: '/register',
-    element: <RegisterPage />,
-  },
-  {
-    path: '/workspaces',
-    element: <WorkspacesPage />,
-  },
-  {
-    path: '/workspaces/:workspaceId',
-    element: <WorkspacePage />,
-  },
-  {
-    path: '/branches/:branchId',
-    element: <BranchWorkspacePage />,
-  },
+  { path: '*', element: <Navigate to="/workspaces" replace /> },
 ]);

@@ -82,3 +82,13 @@ export interface PullRequest {
   created_at: ISODateTime;
   updated_at: ISODateTime;
 }
+
+export interface TokenPair {
+  access_token: string;
+  refresh_token: string;
+}
+
+export interface Credentials {
+  email: string;
+  password: string;
+}

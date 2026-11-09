@@ -1,3 +1,6 @@
+import { useAuthForm } from '../auth/useAuthForm';
+import { useSession } from '../auth/useSession';
+import { RequestState } from '../components/ui/RequestState';
 import { Link } from 'react-router';
 
 import { AuthLayout } from '../components/layout/AuthLayout';
@@ -5,6 +8,8 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 
 export function LoginPage() {
+  const { busy, error, onSubmit } = useAuthForm('login');
+  const { error: sessionError } = useSession();
   return (
     <AuthLayout>
       <h1 className="text-center text-2xl font-bold">
@@ -17,7 +22,7 @@ export function LoginPage() {
 
       <form
         className="mt-6 flex flex-col gap-4"
-        onSubmit={(event) => event.preventDefault()}
+        onSubmit={onSubmit}
       >
         <Input
           id="email"
@@ -26,6 +31,7 @@ export function LoginPage() {
           type="email"
           placeholder="alex@example.com"
           autoComplete="email"
+          disabled={busy}
           required
         />
 
@@ -49,11 +55,13 @@ export function LoginPage() {
             type="password"
             placeholder="Введите пароль"
             autoComplete="current-password"
+            disabled={busy}
             required
           />
         </div>
 
-        <Button type="submit" className="w-full">
+        <RequestState error={error ?? sessionError} />
+        <Button type="submit" className="w-full" loading={busy}>
           Войти
         </Button>
       </form>

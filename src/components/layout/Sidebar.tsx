@@ -1,10 +1,13 @@
+import { useState } from 'react';
+import { useSession } from '../../auth/useSession';
+import { session } from '../../auth/session';
 import { Link, NavLink } from 'react-router';
 import {
   FolderGit2,
   GitBranch,
   LayoutGrid,
   Plus,
-  Settings,
+  LogOut,
 } from 'lucide-react';
 
 import type { User, Workspace, Branch } from '../../types/api';
@@ -17,11 +20,14 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  user,
+  user: suppliedUser,
   workspaces = [],
   branches = [],
   activeWorkspaceId,
 }: SidebarProps) {
+  const { user: sessionUser } = useSession();
+  const user = suppliedUser ?? sessionUser;
+  const [loggingOut, setLoggingOut] = useState(false);
   return (
     <aside className="flex h-screen w-[232px] shrink-0 flex-col border-r border-border bg-background">
       <Link
@@ -123,10 +129,10 @@ export function Sidebar({
             {user?.email ?? 'Пользователь'}
           </span>
 
-          <Settings
-            size={15}
-            className="shrink-0 text-text-muted"
-          />
+          <button type="button" title="Выйти" aria-label="Выйти" disabled={loggingOut} onClick={async () => {
+            setLoggingOut(true);
+            await session.logout();
+          }} className="shrink-0 text-text-muted hover:text-text-primary disabled:opacity-50"><LogOut size={15} /></button>
         </div>
       </div>
     </aside>
