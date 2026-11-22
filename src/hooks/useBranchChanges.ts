@@ -1,64 +1,84 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { resources } from '../api/resources';
-import { errorMessage } from '../api/client';
+import { analysisReadiness, loadChangePages, sameResult } from '../api/generation';
 import { useResource } from './useResource';
-import type { Change } from '../types/api';
+import { useMutation } from './useGeneration';
+import type { Change, Commit } from '../types/api';
+
+export const historyPageSize = 10;
 
 export function useBranchChanges(branchId: string) {
   const [offset, setOffset] = useState(0);
-  const load = useCallback((signal: AbortSignal) => resources.changes(branchId, offset, signal), [branchId, offset]);
+  const load = useCallback((signal: AbortSignal) =>
+    loadChangePages((page, requestSignal) => resources.changes(branchId, page, requestSignal), signal),
+  [branchId]);
   const history = useResource(load);
   const [updates, setUpdates] = useState<Record<string, Change>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [pollError, setPollError] = useState<string | null>(null);
-  const [pollVersion, setPollVersion] = useState(0);
-  const submittingRef = useRef(false);
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => { mounted.current = false; };
-  }, []);
-  const changes = history.data?.items.map(change => updates[change.id] ?? change) ?? [];
-  const selected = selectedId ? updates[selectedId] ?? changes.find(change => change.id === selectedId) : null;
-  const pending = [...new Set([...changes, ...(selected ? [selected] : [])]
-    .filter(change => change.analysis.status === 'pending').map(change => change.id))].join(',');
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const previousCommits = useRef(new Map<string, Commit | null>());
+  const submission = useMutation('Ветка закрыта. Добавить изменение нельзя.');
 
-  useEffect(() => {
-    if (!pending || pollError) return;
-    const controller = new AbortController();
-    let active = false;
-    const poll = async () => {
-      if (active) return;
-      active = true;
-      try {
-        const results = await Promise.all(pending.split(',').map(changeId => resources.change(changeId, controller.signal)));
-        if (!controller.signal.aborted) setUpdates(previous => ({ ...previous, ...Object.fromEntries(results.map(change => [change.id, change])) }));
-      } catch (error) {
-        if (!controller.signal.aborted) setPollError(errorMessage(error));
-      } finally { active = false; }
-    };
-    // This timer only polls real HTTP resources; it never simulates completion.
-    const interval = window.setInterval(() => { void poll(); }, 2500);
-    return () => { controller.abort(); window.clearInterval(interval); };
-  }, [pending, pollError, pollVersion]);
+  const changes = history.data?.map(change => updates[change.id] ?? change) ?? [];
+  const selected = selectedId ? updates[selectedId] ?? changes.find(change => change.id === selectedId) : null;
+  const candidates = selected && !changes.some(change => change.id === selected.id)
+    ? [...changes, selected]
+    : changes;
+  const detailLoading = Boolean(selectedId && selectedId !== detailId);
+  const watched = candidates.filter(change =>
+    (change.id === selectedId && detailLoading) ||
+    change.analysis.status === 'pending' || change.commit?.status === 'pending');
+
+  function select(changeId: string) {
+    if (changeId === selectedId) return;
+    const change = changes.find(item => item.id === changeId);
+    if (change) save(change);
+    setDetailId(null);
+    setSelectedId(changeId);
+  }
+
+  function save(change: Change) {
+    setUpdates(previous => ({ ...previous, [change.id]: change }));
+  }
+
+  function saveCommit(change: Change, commit: Commit) {
+    if (commit.status === 'pending') previousCommits.current.set(change.id, change.commit);
+    save({ ...change, commit });
+  }
+
+  function receiveDetail(change: Change) {
+    // Keep the 202 state while a GET still returns the pre-generation snapshot.
+    const previous = previousCommits.current.get(change.id);
+    const current = updates[change.id]?.commit;
+    if (previousCommits.current.has(change.id) && current?.status === 'pending' &&
+        (!change.commit || (previous && sameResult(previous, change.commit)))) {
+      change = { ...change, commit: current };
+    } else if (change.commit?.status !== 'pending') {
+      previousCommits.current.delete(change.id);
+    }
+    save(change);
+    if (change.id === selectedId) setDetailId(change.id);
+    return change;
+  }
 
   async function submit(rawDiff: string) {
-    if (submittingRef.current || !rawDiff.trim()) return;
-    submittingRef.current = true; setSubmitting(true); setSubmitError(null);
-    try {
-      const change = await resources.submitDiff(branchId, rawDiff);
-      if (!mounted.current) return;
-      setUpdates(previous => ({ ...previous, [change.id]: change }));
-      setSelectedId(change.id); setPollError(null);
+    if (!rawDiff.trim()) return false;
+    return submission.run(signal => resources.submitDiff(branchId, rawDiff, signal), change => {
+      save(change);
+      setDetailId(null);
+      setSelectedId(change.id);
+      setOffset(0);
       history.reload();
-    } catch (error) { if (mounted.current) setSubmitError(errorMessage(error)); }
-    finally { submittingRef.current = false; if (mounted.current) setSubmitting(false); }
+    });
   }
+
+  const readiness = submission.busy || history.loading
+    ? 'Проверяем изменения ветки…'
+    : history.error ? 'Загрузите историю, чтобы проверить анализ изменений.'
+      : analysisReadiness(changes);
+
   return {
-    history, changes, selected, selectedId, setSelectedId, offset, setOffset,
-    submitting, submitError, submit, pollError,
-    retryPolling: () => { setPollError(null); setPollVersion(value => value + 1); },
+    history, changes, watched, selected, selectedId, select, detailLoading, receiveDetail, saveCommit,
+    offset, setOffset, readiness, submit, submitting: submission.busy, submitError: submission.error,
   };
 }

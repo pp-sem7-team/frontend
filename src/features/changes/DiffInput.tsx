@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FileCode2, LoaderCircle } from 'lucide-react';
 
 interface DiffInputProps {
-  onAnalyze?: (rawDiff: string) => void | Promise<void>;
+  onAnalyze?: (rawDiff: string) => void | Promise<void | boolean>;
   isAnalyzing?: boolean;
   disabled?: boolean;
 }
@@ -75,7 +75,7 @@ export function DiffInput({
           ].join(' ')}
         />
 
-        <div className="mt-4 flex items-center justify-between gap-4">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
           <span className="text-xs text-text-muted">
             Символов: {rawDiff.length}
           </span>

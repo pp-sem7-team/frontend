@@ -1,123 +1,114 @@
-import { Check, ClipboardCopy, GitCommitHorizontal, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
+import { GitCommitHorizontal } from 'lucide-react';
+import { resources } from '../../api/resources';
+import { Button } from '../../components/ui/Button';
+import { CopyButton } from '../../components/ui/CopyButton';
+import { RequestState } from '../../components/ui/RequestState';
+import { useMutation } from '../../hooks/useGeneration';
+import { commitTypes, type Change, type Commit, type CommitEdit } from '../../types/api';
 
-import type { Commit } from '../../types/api';
-
-interface CommitResultProps {
-  commit?: Commit | null;
-}
-
-export function CommitResult({ commit }: CommitResultProps) {
-  const [copied, setCopied] = useState(false);
-
-  const isReady =
-    commit?.status === 'done' &&
-    commit.type !== null &&
-    commit.message !== null;
-
-  const commitText = isReady
+export function CommitResult({
+  change, onSaved,
+}: {
+  change: Change;
+  onSaved: (change: Change, commit: Commit) => void;
+}) {
+  const { commit } = change;
+  const [editing, setEditing] = useState(false);
+  const mutation = useMutation('Анализ должен быть завершён. Дождитесь окончания генерации перед повторной попыткой или сохранением.');
+  const canGenerate = change.analysis.status === 'done' && commit?.status !== 'pending';
+  const commitText = commit?.status === 'done' && commit.type && commit.message
     ? `${commit.type}${commit.scope ? `(${commit.scope})` : ''}: ${commit.message}`
     : null;
 
-  async function handleCopy() {
-    if (!commitText) {
-      return;
-    }
+  async function generate() {
+    if (!canGenerate || mutation.busy) return;
+    if (commit?.is_edited_by_user && !window.confirm('Повторная генерация перезапишет ручные изменения коммита. Продолжить?')) return;
+    await mutation.run(signal => resources.generateCommit(change.id, signal), result => onSaved(change, result));
+  }
 
-    try {
-      await navigator.clipboard.writeText(commitText);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
+  async function save(edit: CommitEdit) {
+    if (commit?.status !== 'done') return;
+    const saved = await mutation.run(signal => resources.editCommit(change.id, edit, signal), result => onSaved(change, result));
+    if (saved) setEditing(false);
   }
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-6">
-      <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent">
+    <section className="mt-4 min-w-0 rounded-xl border border-border bg-surface p-5">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
           <GitCommitHorizontal size={19} />
         </div>
-
-        <div>
-          <h3 className="text-base font-semibold text-text-primary">
-            Сообщение коммита
-          </h3>
-
-          <p className="mt-1 text-xs text-text-muted">
-            Результат генерации Conventional Commit.
-          </p>
-        </div>
+        <h3 className="text-sm font-semibold">Сообщение коммита</h3>
       </div>
-
-      {!commit && (
-        <div className="rounded-lg border border-dashed border-border bg-background p-6 text-center">
-          <p className="text-sm text-text-secondary">
-            Сообщение коммита пока не создано.
-          </p>
-
-          <p className="mt-2 text-xs text-text-muted">
-            Добавьте Git diff и запустите анализ, чтобы получить результат.
-          </p>
+      {!commit && <p className="text-sm text-text-muted">Сообщение коммита пока не создано.</p>}
+      {commit?.status === 'pending' && <p role="status" className="text-sm">Генерация сообщения коммита…</p>}
+      {commit?.status === 'failed' && <p role="alert" className="text-sm text-danger">Не удалось сгенерировать сообщение коммита.</p>}
+      {commit?.status === 'done' && (
+        <div className="space-y-2">
+          <p role="status" className="text-xs text-text-muted">Генерация завершена.</p>
+          <p className="wrap-anywhere text-xs text-text-secondary">Тип {commit.type ?? '—'} · Область {commit.scope || '—'}</p>
+          {commitText ? (
+            <div className="flex items-start justify-between gap-2 rounded-lg border border-border bg-background p-3">
+              <code className="min-w-0 whitespace-pre-wrap wrap-anywhere text-sm">{commitText}</code>
+              <CopyButton key={commitText} text={commitText} label="Скопировать сообщение коммита" />
+            </div>
+          ) : <p className="whitespace-pre-wrap wrap-anywhere text-sm">{commit.message || 'Результат генерации недоступен.'}</p>}
+          {commit.is_edited_by_user && <p className="text-xs text-text-muted">Сообщение отредактировано пользователем.</p>}
         </div>
       )}
-
-      {commit?.status === 'pending' && (
-        <div
-          role="status"
-          className="flex items-center gap-3 rounded-lg border border-border bg-background p-5"
-        >
-          <LoaderCircle size={18} className="animate-spin text-accent" />
-
-          <span className="text-sm text-text-secondary">
-            Генерация сообщения коммита...
-          </span>
-        </div>
-      )}
-
-      {commit?.status === 'failed' && (
-        <div
-          role="alert"
-          className="rounded-lg border border-danger/30 bg-danger-soft p-5"
-        >
-          <p className="text-sm text-danger">
-            Не удалось сгенерировать сообщение коммита.
-          </p>
-        </div>
-      )}
-
-      {commit?.status === 'done' && !isReady && (
-        <div className="rounded-lg border border-border bg-background p-5">
-          <p className="text-sm text-text-secondary">
-            Результат генерации пока недоступен.
-          </p>
-        </div>
-      )}
-
-      {commitText && (
-        <div className="rounded-lg border border-border bg-background p-4">
-          <div className="flex items-start justify-between gap-4">
-            <code className="break-all font-mono text-sm leading-6 text-text-primary">
-              {commitText}
-            </code>
-
-            <button
-              type="button"
-              onClick={handleCopy}
-              aria-label="Скопировать сообщение коммита"
-              className="shrink-0 rounded-md p-2 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
-            >
-              {copied ? <Check size={17} /> : <ClipboardCopy size={17} />}
-            </button>
-          </div>
-
-          {commit?.is_edited_by_user && (
-            <p className="mt-3 text-xs text-text-muted">
-              Сообщение отредактировано пользователем.
-            </p>
+      <RequestState error={mutation.error} />
+      {editing && commit?.status === 'done' ? (
+        <CommitEditor commit={commit} busy={mutation.busy} onSave={save} onCancel={() => setEditing(false)} />
+      ) : (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button size="sm" loading={mutation.busy} disabled={!canGenerate} onClick={() => void generate()}>
+            {commit ? 'Сгенерировать заново' : 'Сгенерировать коммит'}
+          </Button>
+          {commit?.status === 'done' && (
+            <Button size="sm" variant="secondary" disabled={mutation.busy} onClick={() => setEditing(true)}>Редактировать</Button>
           )}
         </div>
       )}
     </section>
+  );
+}
+
+function CommitEditor({ commit, busy, onSave, onCancel }: {
+  commit: Commit;
+  busy: boolean;
+  onSave: (edit: CommitEdit) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [type, setType] = useState(commit.type ?? '');
+  const [scope, setScope] = useState(commit.scope ?? '');
+  const [message, setMessage] = useState(commit.message ?? '');
+  const validType = commitTypes.find(value => value === type);
+  const field = 'mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm';
+
+  return (
+    <form className="mt-4 space-y-3" onSubmit={event => {
+      event.preventDefault();
+      if (validType && message.trim() && !busy) void onSave({ type: validType, scope: scope.trim() || null, message: message.trim() });
+    }}>
+      <fieldset disabled={busy} className="min-w-0 space-y-3">
+        <label className="block text-xs">Тип
+          <select required value={type} onChange={event => setType(event.target.value)} className={field}>
+            <option value="">Выберите тип</option>
+            {commitTypes.map(value => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+        <label className="block text-xs">Область (необязательно)
+          <input value={scope} onChange={event => setScope(event.target.value)} className={field} />
+        </label>
+        <label className="block text-xs">Сообщение
+          <textarea required value={message} onChange={event => setMessage(event.target.value)} rows={4} className={`${field} resize-y`} />
+        </label>
+      </fieldset>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" type="submit" disabled={!validType || !message.trim()} loading={busy}>Сохранить</Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={onCancel}>Отмена</Button>
+      </div>
+    </form>
   );
 }

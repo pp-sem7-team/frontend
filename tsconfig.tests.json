@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.app.json",
   "compilerOptions": {
-    "types": ["node"],
+    "types": ["node", "vite/client"],
     "strict": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tests.tsbuildinfo"
   },
