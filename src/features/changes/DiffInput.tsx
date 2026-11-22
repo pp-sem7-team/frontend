@@ -98,7 +98,7 @@ export function DiffInput({
             )}
 
             {isAnalyzing
-              ? 'Анализируем...'
+              ? 'Отправляем...'
               : 'Анализировать изменения'}
           </button>
         </div>

@@ -119,7 +119,7 @@ export function ChangeHistory({
                   </div>
 
                   <p className="mt-2 truncate text-xs text-text-secondary">
-                    {change.commit.status === 'done' &&
+                    {change.commit?.status === 'done' &&
                     change.commit.message
                       ? change.commit.message
                       : 'Сообщение коммита недоступно'}
