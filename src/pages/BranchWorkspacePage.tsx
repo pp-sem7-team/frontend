@@ -4,12 +4,14 @@ import { Link, useParams } from 'react-router';
 import { useCallback } from 'react';
 import { resources } from '../api/resources';
 import { useResource } from '../hooks/useResource';
-import { useBranchChanges } from '../hooks/useBranchChanges';
+import { historyPageSize, useBranchChanges } from '../hooks/useBranchChanges';
 import { RequestState } from '../components/ui/RequestState';
 import { Pagination } from '../components/ui/Pagination';
 
 import { AppLayout } from '../components/layout/AppLayout';
 import { DiffInput } from '../features/changes/DiffInput';
+import { CommitResult } from '../features/commits/CommitResult';
+import { ChangeWatch } from '../features/history/ChangeWatch';
 import { ChangeHistory } from '../features/history/ChangeHistory';
 import { PullRequestResult } from '../features/pull-requests/PullRequestResult';
 
@@ -22,8 +24,9 @@ function BranchContent({ branchId }: { branchId: string }) {
   const branch = useResource(load);
   const currentBranch = branch.data;
   const changes = useBranchChanges(branchId);
+  const page = changes.changes.slice(changes.offset, changes.offset + historyPageSize);
   return (
-    <AppLayout>
+    <AppLayout responsive>
       <div className="flex min-h-screen min-w-0 flex-col">
         {/* Верхняя панель */}
         <header className="border-b border-border">
@@ -59,12 +62,12 @@ function BranchContent({ branchId }: { branchId: string }) {
         </header>
 
         {/* Основное содержимое */}
-        <main className="min-w-0 flex-1 p-4">
+        <div className="min-w-0 flex-1 p-4">
           <RequestState loading={branch.loading} error={branch.error} retry={branch.reload} />
           {currentBranch && <div
             className={[
               'grid min-h-[calc(100vh-180px)]',
-              'grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.3fr)]',
+              'grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.3fr)]',
               'gap-3',
             ].join(' ')}
           >
@@ -73,23 +76,30 @@ function BranchContent({ branchId }: { branchId: string }) {
               <DiffInput onAnalyze={changes.submit} isAnalyzing={changes.submitting} disabled={currentBranch.status === 'closed'} />
               {currentBranch.status === 'closed' && <p role="status" className="mt-3 text-sm text-text-muted">Ветка закрыта. Отправка изменений недоступна.</p>}
               <RequestState error={changes.submitError} />
-              <RequestState error={changes.pollError} retry={changes.retryPolling} />
-              {changes.selected && <AnalysisStatus change={changes.selected} />}
+              {changes.watched.map(change => (
+                <ChangeWatch key={change.id} change={change} loadingDetail={change.id === changes.selectedId && changes.detailLoading} onDetail={changes.receiveDetail} />
+              ))}
+              {changes.selected && !changes.detailLoading && (
+                <>
+                  <AnalysisStatus change={changes.selected} />
+                  <CommitResult key={changes.selected.id} change={changes.selected} onSaved={changes.saveCommit} />
+                </>
+              )}
             </div>
 
             {/* Центральная колонка — история */}
             <div className="min-w-0">
-              <ChangeHistory changes={changes.changes} isLoading={changes.history.loading} error={changes.history.error} selectedChangeId={changes.selectedId} onSelectChange={changes.setSelectedId} />
+              <ChangeHistory changes={page} isLoading={changes.history.loading} error={changes.history.error} selectedChangeId={changes.selectedId} onSelectChange={changes.select} />
               {changes.history.error && <Button variant="ghost" onClick={changes.history.reload}>Повторить загрузку истории</Button>}
-              {changes.history.data && <Pagination offset={changes.history.data.offset} count={changes.history.data.items.length} total={changes.history.data.total} onPage={changes.setOffset} />}
+              {changes.history.data && <Pagination offset={changes.offset} count={page.length} total={changes.changes.length} onPage={changes.setOffset} />}
             </div>
 
             {/* Правая колонка — Pull Request */}
             <div className="min-w-0">
-              <PullRequestResult />
+              <PullRequestResult branchId={branchId} readiness={changes.readiness} />
             </div>
           </div>}
-        </main>
+        </div>
       </div>
     </AppLayout>
   );

@@ -9,6 +9,7 @@ import type { Change } from '../src/types/api.ts';
 // Vite transpiles the existing TSX components; no test runner dependency needed.
 const vite = await createServer({
   configFile: false,
+  cacheDir: 'node_modules/.tmp/vite-ui-test',
   plugins: [react()],
   server: { middlewareMode: true, watch: null, ws: false },
   optimizeDeps: { noDiscovery: true, include: [] },
@@ -64,7 +65,7 @@ test('failed analysis renders failure', () => {
 });
 
 test('history tolerates backend null commit without inventing a result', () => {
-  const actual = { ...change('pending'), commit: null } as unknown as Change;
+  const actual = { ...change('pending'), commit: null };
   const html = renderToStaticMarkup(createElement(ChangeHistory, { changes: [actual] }));
   assert.match(html, /Сообщение коммита недоступно/);
   assert.match(html, /выполняется/);
@@ -76,4 +77,29 @@ test('history distinguishes loading and empty data', () => {
   assert.doesNotMatch(loading, /История пока пуста/);
   const empty = renderToStaticMarkup(createElement(ChangeHistory));
   assert.match(empty, /История пока пуста/);
+});
+
+test('analysis escapes markup and renders arbitrary nested JSON', () => {
+  const actual = change('done');
+  actual.analysis.structured_changes = { nested: [{ enabled: false, count: 0, detail: null }, '<img src=x>'] };
+  const html = renderToStaticMarkup(createElement(AnalysisStatus, { change: actual }));
+  assert.match(html, /nested/);
+  assert.match(html, /enabled&quot;: false/);
+  assert.match(html, /count&quot;: 0/);
+  assert.match(html, /detail&quot;: null/);
+  assert.match(html, /&lt;img src=x&gt;/);
+  assert.doesNotMatch(html, /<img|\[object Object\]/);
+});
+
+test('analysis distinguishes empty JSON from meaningful false and zero', () => {
+  for (const value of [null, {}, [], '']) {
+    const actual = change('done');
+    actual.analysis.structured_changes = value;
+    assert.match(renderToStaticMarkup(createElement(AnalysisStatus, { change: actual })), /Нет данных анализа/);
+  }
+  for (const value of [false, 0, 'отдельная строка']) {
+    const actual = change('done');
+    actual.analysis.structured_changes = value;
+    assert.match(renderToStaticMarkup(createElement(AnalysisStatus, { change: actual })), new RegExp(String(value)));
+  }
 });

@@ -141,7 +141,7 @@ test('stale refresh cannot restore a cleared session', async () => {
   assert.equal(state.get(), null);
 });
 
-for (const status of [400, 401, 409, 413, 503]) {
+for (const status of [400, 401, 404, 409, 413, 500, 503]) {
   test(`API error ${status} preserves code and message`, async () => {
     const { client } = setup(async () => json({ error: { code: 'backend_code', message: 'Backend explanation' } }, status));
     await assert.rejects(client.request('/auth/login', { public: true }), (error: unknown) => {

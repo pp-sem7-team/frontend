@@ -59,7 +59,7 @@ export function ChangeHistory({
           role="alert"
           className="rounded-lg border border-danger/30 bg-danger-soft p-4"
         >
-          <p className="text-sm text-danger">
+          <p className="wrap-anywhere text-sm text-danger">
             {error}
           </p>
         </div>

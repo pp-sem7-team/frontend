@@ -34,15 +34,19 @@ export interface PaginatedResponse<T> {
 }
 export type GenerationStatus = 'pending' | 'done' | 'failed';
 
-export type CommitType =
-  | 'feat'
-  | 'fix'
-  | 'refactor'
-  | 'perf'
-  | 'docs'
-  | 'test'
-  | 'style'
-  | 'chore';
+export const commitTypes = ['feat', 'fix', 'refactor', 'perf', 'docs', 'test', 'style', 'chore'] as const;
+export type CommitType = typeof commitTypes[number];
+
+export interface CommitEdit {
+  type: CommitType;
+  scope: string | null;
+  message: string;
+}
+
+export interface PullRequestEdit {
+  title: string;
+  description: string;
+}
 
 export interface Commit {
   id: UUID;
@@ -68,7 +72,7 @@ export interface Change {
   branch_id: UUID;
   sequence_number: number;
   analysis: AnalysisResult;
-  commit: Commit;
+  commit: Commit | null;
   created_at: ISODateTime;
 }
 
