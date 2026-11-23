@@ -22,6 +22,8 @@ const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input, options) => respond(String(input), options ?? {});
 const vite = await createServer({
   configFile: false,
+  // Keep fixture URLs independent of the developer's Vite proxy configuration.
+  define: { 'import.meta.env.VITE_API_BASE_URL': JSON.stringify('') },
   cacheDir: 'node_modules/.tmp/vite-branch-workspace-test',
   plugins: [react()],
   server: { middlewareMode: true, watch: null, ws: false },

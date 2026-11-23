@@ -59,8 +59,15 @@ npm test
 
 Build включает проверку TypeScript в строгом режиме. `npm test` запускает проверки HTTP-клиента, рендера и сценариев страницы ветки в jsdom. Изолированные ответы транспорта используются только в тестах.
 
-### Ограничения backend
+### Локальная интеграция
 
-Сценарии реализованы по [HTTP API Contract](https://github.com/pp-sem7-team/docs/blob/main/HTTP_API.md). В [Swagger backend ветки dev](https://github.com/pp-sem7-team/backend/blob/dev/docs/swagger.json) описаны генерация и редактирование коммитов. [README backend](https://github.com/pp-sem7-team/backend/blob/dev/README.md) указывает, что генерация PR ещё отсутствует. Для сквозной проверки PR нужна версия backend с тремя эндпоинтами из контракта.
+В backend [`6d3cd0d`](https://github.com/pp-sem7-team/backend/commit/6d3cd0d) доступны эндпоинты генерации и редактирования коммитов и описаний PR из [HTTP API Contract](https://github.com/pp-sem7-team/docs/blob/main/HTTP_API.md). Штатная заглушка `cmd/ai-stub` обрабатывает все три очереди RabbitMQ.
 
-Frontend поддерживает `commit: null`. Это допустимый ответ для интерфейса: история остаётся доступной, а карточка показывает отсутствие сообщения. Сквозная проверка с авторизацией, реальной генерацией и сохранением требует настроенного backend.
+В соседнем каталоге backend создайте `.env` из `.env.docker.example` и замените значение `JWT_SECRET` случайным ключом длиной как минимум 32 байта. Запустите официальный Compose под отдельным именем проекта, чтобы использовать собственные volumes.
+
+```sh
+docker compose -p gitmind-local up -d --build
+docker compose -p gitmind-local ps -a
+```
+
+Дождитесь успешного завершения `migrate` и HTTP 200 от `/health` и `/health/db`. Затем из каталога backend запустите `go run ./cmd/ai-stub -result done`, а из frontend с настройками Vite proxy выше запустите `npm run dev`. Тесты frontend используют собственный адрес API и выполняются с локальным `.env.local`.
